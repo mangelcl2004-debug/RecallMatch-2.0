@@ -304,7 +304,7 @@ def show_product(product, barcode, selected_allergens):
     )
 
 
-PAGES = ["Home", "Food Scanner", "FDA Recalls", "Food Health Score", "Compare Foods",
+PAGES = ["Home", "Food Scanner", "Food Health Score", "FDA Recalls", "Compare Foods",
          "Food Diary", "Nutrition Calendar", "Recent Scans",
          "AI Nutrition Assistant", "My Account"]
 
@@ -396,6 +396,78 @@ elif st.session_state.page == "Food Scanner":
     if st.session_state.last_product:
         show_product(st.session_state.last_product[0], st.session_state.last_product[1], selected_allergens)
 
+elif st.session_state.page == "Food Health Score":
+    st.title("🥗 Food Health Score")
+    st.write("Evaluate the nutritional quality of your scanned food product.")
+    if st.session_state.last_product:
+        product = st.session_state.last_product[0]
+        nutriments = product.get("nutriments") or {}
+        sugar = nutriments.get("sugars_100g")
+        saturated_fat = nutriments.get("saturated-fat_100g")
+        salt = nutriments.get("salt_100g")
+        fiber = nutriments.get("fiber_100g")
+        st.subheader(
+            product.get("product_name")
+            or product.get("product_name_en")
+            or "Scanned Product"
+        )
+        values = {
+            "Sugar": sugar,
+            "Saturated Fat": saturated_fat,
+            "Salt": salt,
+            "Fiber": fiber
+        }
+        for name, value in values.items():
+            if value is not None:
+                st.write(f"**{name}:** {value} g / 100 g")
+            else:
+                st.warning(f"{name}: Data not available")
+        if all(v is not None for v in values.values()):
+            sugar_penalty = (
+                30 if sugar > 30 else
+                20 if sugar > 20 else
+                10 if sugar > 10 else
+                5 if sugar > 5 else 0
+            )
+            fat_penalty = (
+                20 if saturated_fat > 5 else
+                10 if saturated_fat > 3 else
+                5 if saturated_fat > 1 else 0
+            )
+            salt_penalty = (
+                20 if salt > 3 else
+                10 if salt > 1.5 else
+                5 if salt > 0.3 else 0
+            )
+            fiber_bonus = (
+                10 if fiber >= 6 else
+                5 if fiber >= 3 else 0
+            )
+            score = max(
+                0,
+                min(100, 100 - sugar_penalty
+                    - fat_penalty - salt_penalty + fiber_bonus)
+            )
+            st.divider()
+            st.metric("Food Health Score", f"{score}/100")
+            if score >= 80:
+                st.success("Good nutritional profile!")
+            elif score >= 60:
+                st.info("Moderate nutritional profile.")
+            else:
+                st.warning("This product has several nutritional factors to consider.")
+        else:
+            st.warning(
+                "A complete score cannot be calculated because "
+                "some nutritional information is missing."
+            )
+    else:
+        st.info("Please scan a food product first using Food Scanner.")
+    st.caption(
+        "Experimental educational score based on sugar, saturated fat, "
+        "salt and fiber. This is not an official Nutri-Score or medical advice."
+    )
+    
 elif st.session_state.page == "FDA Recalls":
     st.title("🛡️ FDA Food Recalls")
     st.write("Search FDA food enforcement reports for recalled products, brands, or companies.")
