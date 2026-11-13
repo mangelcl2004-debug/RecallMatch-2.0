@@ -381,6 +381,7 @@ elif st.session_state.page == "Food Scanner":
             with st.spinner("Searching Open Food Facts..."):
                 try:
                     product = lookup_open_food_facts(cleaned_barcode)
+                    
                     if product:
                         product = dict(product)
                         product["barcode"] = cleaned_barcode
@@ -396,8 +397,10 @@ elif st.session_state.page == "Food Scanner":
                     else:
                          st.session_state.last_product = None
                          st.warning("No matching product was found. Check the barcode and try again.")
-            except RuntimeError as error:
+                        
+                except RuntimeError as error:
                     st.error(str(error))
+                    
         elif photo:
             st.info("Photo recognition is not connected yet. Please enter the barcode digits for now.")
         else:
