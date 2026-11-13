@@ -382,7 +382,8 @@ elif st.session_state.page == "Food Scanner":
                 try:
                     product = lookup_open_food_facts(cleaned_barcode)
                     if product:
-                        st.session_state.last_product = (product, cleaned_barcode)
+                        prodcut["barcode"] = cleaned_barcode
+                        st.session_state.last_product = product
                         if "scan_history" not in st.session_state:
                             st.session_state.scan_history = []
                             
