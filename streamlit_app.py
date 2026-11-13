@@ -499,6 +499,54 @@ elif st.session_state.page == "Compare Foods":
                                     pass
 
                         st.caption("Nutrition values are shown per 100 g for a like-for-like comparison. A lower or higher value is not automatically better for every nutrient; consider serving size and your dietary needs.")
+
+                        # Automatic plain-language summary of four commonly compared nutrients.
+                        st.markdown("### 🧾 Comparison Summary")
+                        summary_metrics = [
+                            ("Calories", "energy-kcal_100g", "kcal", "lower"),
+                            ("Sugar", "sugars_100g", "g", "lower"),
+                            ("Saturated fat", "saturated-fat_100g", "g", "lower"),
+                            ("Protein", "proteins_100g", "g", "higher"),
+                        ]
+                        wins = {"Product 1": 0, "Product 2": 0}
+                        available_comparisons = 0
+                        for metric_name, metric_key, metric_unit, preferred in summary_metrics:
+                            raw1 = nutrition1.get(metric_key)
+                            raw2 = nutrition2.get(metric_key)
+                            try:
+                                number1 = float(raw1) if raw1 is not None else None
+                                number2 = float(raw2) if raw2 is not None else None
+                            except (TypeError, ValueError):
+                                number1 = number2 = None
+
+                            if number1 is None or number2 is None:
+                                st.write(f"**{metric_name}:** Cannot compare — data missing for one or both products.")
+                                continue
+
+                            available_comparisons += 1
+                            if number1 == number2:
+                                st.write(f"**{metric_name}:** Tie — both contain {number1:g} {metric_unit} per 100 g.")
+                            else:
+                                product1_is_better = number1 < number2 if preferred == "lower" else number1 > number2
+                                winner = "Product 1" if product1_is_better else "Product 2"
+                                wins[winner] += 1
+                                better_value = min(number1, number2) if preferred == "lower" else max(number1, number2)
+                                other_value = max(number1, number2) if preferred == "lower" else min(number1, number2)
+                                st.write(
+                                    f"**{metric_name}:** {winner} has the more favorable value "
+                                    f"({better_value:g} vs. {other_value:g} {metric_unit} per 100 g)."
+                                )
+
+                        st.markdown("#### Overall takeaway")
+                        if available_comparisons == 0:
+                            st.warning("There is not enough nutrition data to generate a comparison summary.")
+                        elif wins["Product 1"] > wins["Product 2"]:
+                            st.success(f"{product1.get('product_name') or 'Product 1'} has more favorable results across these available indicators ({wins['Product 1']} vs. {wins['Product 2']}).")
+                        elif wins["Product 2"] > wins["Product 1"]:
+                            st.success(f"{product2.get('product_name') or 'Product 2'} has more favorable results across these available indicators ({wins['Product 2']} vs. {wins['Product 1']}).")
+                        else:
+                            st.info("The products are tied across the available indicators, or neither has more favorable results overall.")
+                        st.caption("This takeaway compares only calories, sugar, saturated fat, and protein when data is available. It is not a medical or personalized dietary recommendation. Check serving sizes and the package label; a product is not automatically healthier based on these four values alone.")
                 except (RuntimeError, ValueError) as exc:
                     st.error(str(exc))
 
