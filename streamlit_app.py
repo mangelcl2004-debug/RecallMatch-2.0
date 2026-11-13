@@ -1,4 +1,4 @@
-import json
+ximport json
 import re
 import urllib.error
 import urllib.request
@@ -304,7 +304,7 @@ def show_product(product, barcode, selected_allergens):
     )
 
 
-PAGES = ["Home", "Food Scanner", "FDA Recalls", "Compare Foods",
+PAGES = ["Home", "Food Scanner", "FDA Recalls", "Food Health Score", "Compare Foods",
          "Food Diary", "Nutrition Calendar", "Recent Scans",
          "AI Nutrition Assistant", "My Account"]
 
