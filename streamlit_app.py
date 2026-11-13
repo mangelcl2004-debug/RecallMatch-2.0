@@ -671,24 +671,25 @@ elif st.session_state.page == "Recent Scans":
     
 elif st.session_state.page == "AI Nutrition Assistant":
     st.title("🤖 RecallMatch AI")
-    st.wtite("Your personal food and nutrition assistant.")
+    st.write("Your personal food and nutrition assistant.")
 
     if st.session_state.last_product:
         product = st.session_state.last_product[0]
+
         st.subheader(product.get("product_name", "Scanned Product"))
-    
+
         nutrients = product.get("nutriments", {})
         sugar = nutrients.get("sugars_100g")
         fat = nutrients.get("saturated-fat_100g")
         protein = nutrients.get("proteins_100g")
         salt = nutrients.get("salt_100g")
-    
+
         question = st.text_input("Ask a nutrition question")
-    
-    if st.button("Send") and question.strip():
+
+        if st.button("Send") and question.strip():
             q = question.lower()
-        
-            if "suggar" in q:
+
+            if "sugar" in q:
                 answer = f"Sugar: {sugar} g per 100g." if sugar is not None else "Sugar information is unavailable."
             elif "fat" in q:
                 answer = f"Saturated fat: {fat} g per 100g." if fat is not None else "Fat information is unavailable."
@@ -702,8 +703,10 @@ elif st.session_state.page == "AI Nutrition Assistant":
                 answer = "Ask me about sugar, saturated fat, protein, salt, or allergens."
 
             st.success(answer)
-     else:
+
+    else:
         st.info("Scan a food product first to ask nutrition questions.")
+    
 
 elif st.session_state.page == "My Account":
     st.title("👤 My Account")
