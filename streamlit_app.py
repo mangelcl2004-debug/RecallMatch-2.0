@@ -729,7 +729,7 @@ elif st.session_state.page == "My Account":
     )
 
     diet = st.selectbox(
-        "Dietary preference",
+        "Dietary preference",)
         [
             "No specific diet",
             "Vegetarian",
