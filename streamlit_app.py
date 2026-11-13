@@ -657,15 +657,17 @@ elif st.session_state.page == "Nutrition Calendar":
 
 elif st.session_state.page == "Recent Scans":
     st.title("🕘 Recent Scans")
+    
     if "scan_history" not in st.session_state:
         st.session_state.scan_history = []
-if st.session_state.scan_history:
-    for item in reversed(st.session_state.scan_history):
-        st.write(f"**{item['name']}**")
-        st.caption(f"Barcode: {item['barcode']}")
-        st.divider()
-else:
-    st.info("No scanned products yet. Scan a food product to see it here.")
+        
+    if st.session_state.scan_history:
+        for item in reversed(st.session_state.scan_history):
+            st.write(f"**{item['name']}**")
+            st.caption(f"Barcode: {item['barcode']}")
+            st.divider()
+    else:
+        st.info("No scanned products yet. Scan a food product to see it here.")
     
 elif st.session_state.page == "AI Nutrition Assistant":
     st.title("🤖 RecallMatch AI")
