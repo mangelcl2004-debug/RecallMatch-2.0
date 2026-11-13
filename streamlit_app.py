@@ -394,8 +394,8 @@ elif st.session_state.page == "Food Scanner":
                             "barcode": cleaned_barcode
                         })
                     else:
-                 st.session_state.last_product = None
-                 st.warning("No matching product was found. Check the barcode and try again.")
+                         st.session_state.last_product = None
+                         st.warning("No matching product was found. Check the barcode and try again.")
             except RuntimeError as error:
                     st.error(str(error))
         elif photo:
