@@ -728,26 +728,21 @@ elif st.session_state.page == "My Account":
         value=profile["name"]
     )
 
+    diet_options = [
+        "No specific diet",
+        "Vegetarian",
+        "Vegan",
+        "Gluten-free",
+        "Dairy-free",
+        "Low-sugar"
+    ]
+
     diet = st.selectbox(
         "Dietary preference",
-        [
-            "No specific diet",
-            "Vegetarian",
-            "Vegan",
-            "Gluten-free",
-            "Dairy-free",
-            "Low-sugar"
-        ])
-        index=[
-            "No specific diet",
-            "Vegetarian",
-            "Vegan",
-            "Gluten-free",
-            "Dairy-free",
-            "Low-sugar"
-        ].index(profile["diet"]
+        diet_options,
+        index=diet_options.index(profile["diet"])
     )
-
+       
     allergies = st.text_input(
         "Food allergies",
         value=profile["allergies"],
