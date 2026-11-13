@@ -671,10 +671,39 @@ elif st.session_state.page == "Recent Scans":
     
 elif st.session_state.page == "AI Nutrition Assistant":
     st.title("🤖 RecallMatch AI")
-    st.write("Your food and nutrition assistant.")
+    st.wtite("Your personal food and nutrition assistant.")
+
+    if st.session_state.last_product:
+    product = st.session_state.last_product[0]
+    st.subheader(product.get("product_name", "Scanned Product"))
+    
+    nutrients = product.get("nutriments", {})
+    sugar = nutrients.get("sugars_100g")
+    fat = nutrients.get("saturated-fat_100g")
+    protein = nutrients.get("proteins_100g")
+    salt = nutrients.get("salt_100g")
+    
     question = st.text_input("Ask a nutrition question")
+    
     if st.button("Send") and question.strip():
-        st.info("The AI service has not been connected yet.")
+        q = question.lower()
+        
+        if "sugar" in q:
+            answer = f"Sugar: {sugar} g per 100g." if sugar is not None else "Sugar information is unavailable."
+        elif "fat" in q:
+            answer = f"Saturated fat: {fat} g per 100g." if fat is not None else "Fat information is unavailable."
+        elif "protein" in q:
+            answer = f"Protein: {protein} g per 100g." if protein is not None else "Protein information is unavailable."
+        elif "salt" in q or "sodium" in q:
+            answer = f"Salt: {salt} g per 100g." if salt is not None else "Salt information is unavailable."
+        elif "allergen" in q or "ingredient" in q:
+            answer = "Please review the product ingredients and package allergen label. The database may be incomplete."
+        else:
+            answer = "Ask me about sugar, saturated fat, protein, salt, or allergens."
+            
+        st.success(answer)
+     else:
+        st.info("Scan a food product first to ask nutrition questions.")
 
 elif st.session_state.page == "My Account":
     st.title("👤 My Account")
