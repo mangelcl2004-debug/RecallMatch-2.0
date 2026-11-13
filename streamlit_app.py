@@ -729,42 +729,216 @@ elif st.session_state.page == "Recent Scans":
     st.caption("Scan history is stored temporarily during this session.")
     
 elif st.session_state.page == "AI Nutrition Assistant":
-    st.title("🤖 RecallMatch AI")
-    st.write("Your personal food and nutrition assistant.")
+    st.title("🤖 RecallMatch AI Nutrition Assistant")
+    st.write(
+        "Your personal food and nutrition assistant. "
+        "Ask questions about food, ingredients and nutrition."
+    )
 
-    if st.session_state.last_product:
-        product = st.session_state.last_product[0]
+    # Get the latest scanned product
+    product = st.session_state.get("last_product", None)
 
-        st.subheader(product.get("product_name", "Scanned Product"))
+    # Get saved account preferences
+    profile = st.session_state.get("account_profile", {})
+    diet = profile.get("diet", "No specific diet")
+    allergies = profile.get("allergies", "")
+    st.subheader("Your Nutrition Profile")
+    st.write(f"**Dietary preference:** {diet}")
+    st.write(f"**Food allergies:** {allergies or 'Not specified'}")
+    
+    st.divider()
 
-        nutrients = product.get("nutriments", {})
-        sugar = nutrients.get("sugars_100g")
-        fat = nutrients.get("saturated-fat_100g")
-        protein = nutrients.get("proteins_100g")
-        salt = nutrients.get("salt_100g")
+    st.subheader("Latest Scanned Product")
 
-        question = st.text_input("Ask a nutrition question")
+    if product and isinstance(product, dict):
+        product_name = product.get("product_name") or product.get("name", "Unknown product")
+        nutriments = product.get("nutriments", {})
 
-        if st.button("Send") and question.strip():
-            q = question.lower()
+        if not isinstance(nutriments, dict):
+            nutriments = {}
 
-            if "sugar" in q:
-                answer = f"Sugar: {sugar} g per 100g." if sugar is not None else "Sugar information is unavailable."
-            elif "fat" in q:
-                answer = f"Saturated fat: {fat} g per 100g." if fat is not None else "Fat information is unavailable."
-            elif "protein" in q:
-                answer = f"Protein: {protein} g per 100g." if protein is not None else "Protein information is unavailable."
-            elif "salt" in q or "sodium" in q:
-                answer = f"Salt: {salt} g per 100g." if salt is not None else "Salt information is unavailable."
-            elif "allergen" in q or "ingredient" in q:
-                answer = "Please review the product ingredients and package allergen label. The database may be incomplete."
-            else:
-                answer = "Ask me about sugar, saturated fat, protein, salt, or allergens."
+        st.write(f"**Product:** {product_name}")
 
-            st.success(answer)
+        calories = nutriments.get("energy-kcal_100g")
+        sugar = nutriments.get("sugars_100g")
+        protein = nutriments.get("proteins_100g")
+        fat = nutriments.get("fat_100g")
+        saturated_fat = nutriments.get("saturated-fat_100g")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "Calories / 100g",
+                f"{calories} kcal" if calories is not None else "N/A"
+            )
+
+        with col2:
+            st.metric(
+                "Sugar / 100g",
+                f"{sugar} g" if sugar is not None else "N/A"
+            )
+
+        with col3:
+            st.metric(
+                "Protein / 100g",
+                f"{protein} g" if protein is not None else "N/A"
+            )
+
+        if fat is not None:
+            st.write(f"**Total fat:** {fat} g per 100g")
+
+        if saturated_fat is not None:
+            st.write(f"**Saturated fat:** {saturated_fat} g per 100g")
 
     else:
-        st.info("Scan a food product first to ask nutrition questions.")
+        st.info(
+            "No product scanned yet. Use Food Scanner first "
+            "to get personalized product information."
+        )
+        product_name = None
+        nutriments = {}
+        sugar = None
+        protein = None
+        calories = None
+        fat = None
+        saturated_fat = None
+
+    st.divider()
+
+    st.subheader("Ask RecallMatch")
+
+    question = st.text_input(
+        "What would you like to know?",
+        placeholder="Example: Is this product high in sugar?"
+    )
+
+    if st.button("Ask Nutrition Assistant"):
+        if not question.strip():
+            st.warning("Please enter a question.")
+        else:
+            q = question.lower()
+            answer = ""
+            if any(word in q for word in ["allerg", "peanut", "milk", "soy", "gluten"]):
+                if allergies:
+                    answer = (
+                        f"Your profile lists these food allergies: {allergies}. "
+                        "Check the product ingredients and allergen label carefully. "
+                        "The scanner may not detect every allergen."
+                    )
+
+                else:
+                    answer = (
+                        "You have not listed any food allergies in My Account. "
+                        "Always check the package label for allergen information."
+                    )
+
+            elif any(word in q for word in ["sugar", "sweet"]):
+                if sugar is not None:
+                    try:
+                        value = float(sugar)
+                        if value >= 22.5:
+                            level = "high"
+                        elif value <= 5:
+                            level = "low"
+                        else:
+                            level = "moderate"
+                            
+                        answer = (
+                            f"{product_name} contains {value} g of sugar per 100 g. "
+                            f"This is considered a {level} amount using general "
+                            "nutrition-label guidelines."
+                        )
+
+                    except (ValueError, TypeError):
+                        answer = "Sugar information is not available in a usable format."
+                else:
+                    answer = "Scan a product with available sugar information first."
+
+            elif any(word in q for word in ["protein", "muscle"]):
+                if protein is not None:
+                    answer = (
+                        f"{product_name} contains {protein} g of protein per 100 g. "
+                        "Protein is important for muscle maintenance and body functions."
+                    )
+
+                else:
+                    answer = "Protein information is not available for this product."
+
+            elif any(word in q for word in ["calorie", "energy", "kcal"]):
+                if calories is not None:
+                    answer = (
+                        f"{product_name} contains {calories} kcal per 100 g. "
+                        "Remember that your portion size affects the calories consumed."
+                    )
+
+                else:
+                    answer = "Calorie information is not available for this product."
+
+            elif any(word in q for word in ["fat", "saturated"]):
+                if fat is not None:
+                    answer = (
+                        f"{product_name} contains {fat} g of total fat per 100 g. "
+                    )
+
+                    if saturated_fat is not None:
+                        answer += f"It also contains {saturated_fat} g of saturated fat."
+
+                else:
+                    answer = "Fat information is not available for this product."
+
+            elif any(word in q for word in ["healthy", "good for me", "good food"]):
+                if product and sugar is not None and protein is not None:
+                    answer = (
+                        f"Here is a basic nutrition overview of {product_name}: "
+                        f"{sugar} g sugar and {protein} g protein per 100 g. "
+                        "Consider the serving size, ingredients and your dietary needs. "
+                        "This information alone cannot determine whether a food is healthy."
+                    )
+
+                else:
+                    answer = (
+                        "To evaluate a food, consider its calories, sugar, saturated fat, "
+                        "protein, fiber, ingredients and serving size."
+                    )
+
+            elif any(word in q for word in ["diet", "vegetarian", "vegan", "gluten"]):
+                answer = (
+                    f"Your saved dietary preference is {diet}. "
+                    "Check the ingredient list and product certification to verify "
+                    "whether a product meets your dietary requirements."
+                )
+
+            else:
+                answer = (
+                    "I can help with questions about sugar, protein, calories, fat, "
+                    "allergens and dietary preferences. Try asking one of these topics."
+                )
+
+            st.markdown("### 💡 RecallMatch Recommendation")
+            st.info(answer)
+
+            st.caption(
+                "This assistant uses basic rules and available product data. "
+                "It does not provide medical advice or guarantee allergen safety."
+            )
+
+    st.divider()
+
+    st.subheader("Suggested Questions")
+
+    examples = [
+        "Is this product high in sugar?",
+        "How much protein does it contain?",
+        "How many calories does it have?",
+        "Does my profile list any allergies?",
+        "Is this product suitable for my diet?"
+    ]
+
+    for example in examples:
+        st.write(f"• {example}")
+
+    st.caption("RecallMatch 2.0 | Food Intelligence Platform")    
     
 elif st.session_state.page == "My Account":
     st.title("👤 My Account")
