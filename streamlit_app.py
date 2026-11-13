@@ -711,7 +711,62 @@ elif st.session_state.page == "AI Nutrition Assistant":
 elif st.session_state.page == "My Account":
     st.title("👤 My Account")
     st.write("Manage your RecallMatch profile.")
-    st.info("Secure registration and authentication will be implemented in a future phase.")
 
-st.divider()
+    if "account_profile" not in st.session_state:
+        st.session_state.account_profile = {
+            "name": "",
+            "diet": "No specific diet",
+            "allergies": ""
+        }
+
+    profile = st.session_state.account_profile
+
+    st.subheader("Personal Information")
+
+    name = st.text_input(
+        "Your name",
+        value=profile["name"]
+    )
+
+    diet = st.selectbox(
+        "Dietary preference",
+        [
+            "No specific diet",
+            "Vegetarian",
+            "Vegan",
+            "Gluten-free",
+            "Dairy-free",
+            "Low-sugar"
+        ],
+        index=[
+            "No specific diet",
+            "Vegetarian",
+            "Vegan",
+            "Gluten-free",
+            "Dairy-free",
+            "Low-sugar"
+        ].index(profile["diet"]
+    )
+
+    allergies = st.text_input(
+        "Food allergies",
+        value=profile["allergies"],
+        placeholder="Example: peanuts, milk, soy"
+    )
+
+    if st.button("Save Profile"):
+        st.session_state.account_profile = {
+            "name": name,
+            "diet": diet,
+            "allergies": allergies
+        }
+        st.success("Profile saved successfully!")
+
+    st.divider()
+    st.subheader("Your Saved Profile")
+    st.write("Name:", profile["name"])
+    st.write("Diet:", profile["diet"])
+    st.write("Food allergies:", profile["allergies"])
+
+    st.caption("Profile information is stored temporarily in this session.")
 st.caption("RecallMatch 2.0 | Food Intelligence Platform")
