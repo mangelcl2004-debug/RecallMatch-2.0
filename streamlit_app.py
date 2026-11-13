@@ -313,7 +313,7 @@ if "page" not in st.session_state:
 if "diary" not in st.session_state:
     st.session_state.diary = []
 if "last_product" not in st.session_state:
-    st.session_state.last_product = None
+    st.session_state.last_product = product
 
 with st.sidebar:
     st.markdown('<div class="rm-brand">✦ RecallMatch</div>', unsafe_allow_html=True)
@@ -383,6 +383,13 @@ elif st.session_state.page == "Food Scanner":
                     product = lookup_open_food_facts(cleaned_barcode)
                     if product:
                         st.session_state.last_product = (product, cleaned_barcode)
+                        if "scan_history" not in st.session_state:
+                            st.session_state.scan_history = []
+                            
+                        st.session_state.scan_history.append({
+                            "name": product.get("product_name", "Unknown product"),
+                            "barcode": cleaned_barcode
+                        })
                     else:
                         st.session_state.last_product = None
                         st.warning("No matching product was found. Check the barcode and try again.")
@@ -650,8 +657,16 @@ elif st.session_state.page == "Nutrition Calendar":
 
 elif st.session_state.page == "Recent Scans":
     st.title("🕘 Recent Scans")
-    st.info("Scan history and permanent storage will be implemented in a future phase.")
-
+    if "scan_history" not in st.session_state:
+    st.session_state.scan_history = []
+if st.session_state.scan_history:
+    for item in reversed(st.session_state.scan_history):
+        st.write(f"**{item['name']}**")
+        st.caption(f"Barcode: {item['barcode']}")
+        st.divider()
+else:
+    st.info("No scanned products yet. Scan a food product to see it here.")
+    
 elif st.session_state.page == "AI Nutrition Assistant":
     st.title("🤖 RecallMatch AI")
     st.write("Your food and nutrition assistant.")
