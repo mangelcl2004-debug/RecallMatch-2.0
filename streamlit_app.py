@@ -69,6 +69,88 @@ def lookup_open_food_facts(barcode: str):
     return data["product"]
 
 
+def search_open_food_facts(search_term: str, page_size: int = 8):
+    """Search Open Food Facts by product name or brand."""
+    term = search_term.strip()
+    if not term:
+        raise ValueError("Enter a product name or brand.")
+
+    fields = (
+        "code,product_name,product_name_en,brands,quantity,image_url,"
+        "nutriscore_grade,nutriments"
+    )
+    params = (
+        f"search_terms={quote(term)}&search_simple=1&action=process&json=1"
+        f"&page_size={int(page_size)}&fields={quote(fields)}"
+    )
+    url = f"https://world.openfoodfacts.org/cgi/search.pl?{params}"
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "RecallMatch/2.0 (food comparison)"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"Open Food Facts returned HTTP {exc.code} while searching.") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError("Could not reach Open Food Facts. Check the internet connection and try again.") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Open Food Facts returned an unreadable search response.") from exc
+
+    products = data.get("products") or []
+    # Prefer a result whose name or brand contains the requested search words.
+    terms = [word.lower() for word in re.findall(r"[a-zA-Z0-9]+", term) if len(word) > 1]
+    def relevance(product):
+        name = (product.get("product_name") or product.get("product_name_en") or "").lower()
+        brand = (product.get("brands") or "").lower()
+        text = f"{name} {brand}"
+        return sum(3 if word in name else 1 if word in brand else 0 for word in terms)
+    products = [p for p in products if p.get("product_name") or p.get("product_name_en")]
+    products.sort(key=relevance, reverse=True)
+    if not products or relevance(products[0]) == 0:
+        return None
+    return products[0]
+
+
+def show_comparison_product(product, label: str):
+    """Display a concise product summary and nutrition values per 100 g."""
+    name = product.get("product_name") or product.get("product_name_en") or "Name not available"
+    brand = product.get("brands") or "Brand not listed"
+    nutriments = product.get("nutriments") or {}
+    st.subheader(name)
+    st.caption(f"{label} · {brand}")
+    if product.get("image_url"):
+        try:
+            st.image(product["image_url"], use_container_width=True)
+        except Exception:
+            st.caption("Product image could not be loaded.")
+    if product.get("quantity"):
+        st.caption(f"Package: {product['quantity']}")
+    if product.get("nutriscore_grade"):
+        st.caption(f"Nutri-Score: {str(product['nutriscore_grade']).upper()}")
+    values = [
+        ("Calories", "energy-kcal_100g", "kcal"),
+        ("Fat", "fat_100g", "g"),
+        ("Saturated fat", "saturated-fat_100g", "g"),
+        ("Carbohydrates", "carbohydrates_100g", "g"),
+        ("Sugars", "sugars_100g", "g"),
+        ("Fiber", "fiber_100g", "g"),
+        ("Protein", "proteins_100g", "g"),
+        ("Salt", "salt_100g", "g"),
+    ]
+    for title, key, unit in values:
+        value = nutriments.get(key)
+        if value is None:
+            st.write(f"**{title}:** Not provided")
+        else:
+            try:
+                st.write(f"**{title}:** {float(value):g} {unit} / 100 g")
+            except (TypeError, ValueError):
+                st.write(f"**{title}:** {value} {unit} / 100 g")
+    return nutriments
+
+
 def lookup_fda_food_recalls(search_term: str, limit: int = 10):
     """Search FDA's public openFDA food enforcement recall database."""
     term = search_term.strip()
@@ -351,15 +433,76 @@ elif st.session_state.page == "FDA Recalls":
 
 elif st.session_state.page == "Compare Foods":
     st.title("⚖️ Compare Foods")
-    col1,col2 = st.columns(2)
+    st.write("Search two packaged foods in Open Food Facts and compare their nutrition per 100 g.")
+    col1, col2 = st.columns(2)
     with col1:
         st.subheader("Product 1")
-        food1 = st.text_input("First food product")
+        food1 = st.text_input("First food product", placeholder="Example: Nutella", key="compare_food_1")
     with col2:
         st.subheader("Product 2")
-        food2 = st.text_input("Second food product")
-    if st.button("Compare Products"):
-        st.info("Product comparison will be connected after product lookup is tested.")
+        food2 = st.text_input("Second food product", placeholder="Example: Peanut Butter", key="compare_food_2")
+
+    if st.button("Compare Products", type="primary"):
+        if not food1.strip() or not food2.strip():
+            st.warning("Enter both product names before comparing.")
+        elif food1.strip().casefold() == food2.strip().casefold():
+            st.warning("Enter two different products to compare.")
+        else:
+            with st.spinner("Searching Open Food Facts for both products..."):
+                try:
+                    product1 = search_open_food_facts(food1)
+                    product2 = search_open_food_facts(food2)
+                    if not product1:
+                        st.error(f'No matching product was found for "{food1}". Try a more specific product or brand name.')
+                    elif not product2:
+                        st.error(f'No matching product was found for "{food2}". Try a more specific product or brand name.')
+                    else:
+                        st.success("Both products were found in Open Food Facts.")
+                        compare_col1, compare_col2 = st.columns(2)
+                        with compare_col1:
+                            nutrition1 = show_comparison_product(product1, "Product 1")
+                        with compare_col2:
+                            nutrition2 = show_comparison_product(product2, "Product 2")
+
+                        st.markdown("### Side-by-side nutrition comparison")
+                        comparison_items = [
+                            ("Calories", "energy-kcal_100g", "kcal", "lower"),
+                            ("Total fat", "fat_100g", "g", "lower"),
+                            ("Saturated fat", "saturated-fat_100g", "g", "lower"),
+                            ("Carbohydrates", "carbohydrates_100g", "g", "context"),
+                            ("Sugars", "sugars_100g", "g", "lower"),
+                            ("Fiber", "fiber_100g", "g", "higher"),
+                            ("Protein", "proteins_100g", "g", "higher"),
+                            ("Salt", "salt_100g", "g", "lower"),
+                        ]
+                        header1, header2 = st.columns(2)
+                        header1.markdown(f"**{product1.get('product_name') or product1.get('product_name_en') or 'Product 1'}**")
+                        header2.markdown(f"**{product2.get('product_name') or product2.get('product_name_en') or 'Product 2'}**")
+                        for title, key, unit, direction in comparison_items:
+                            value1 = nutrition1.get(key)
+                            value2 = nutrition2.get(key)
+                            left, right = st.columns(2)
+                            def format_value(value):
+                                if value is None:
+                                    return "Not provided"
+                                try:
+                                    return f"{float(value):g} {unit} / 100 g"
+                                except (TypeError, ValueError):
+                                    return f"{value} {unit} / 100 g"
+                            left.write(f"**{title}:** {format_value(value1)}")
+                            right.write(f"**{title}:** {format_value(value2)}")
+                            if value1 is not None and value2 is not None:
+                                try:
+                                    difference = float(value1) - float(value2)
+                                    st.caption(f"Difference (Product 1 − Product 2): {difference:+g} {unit} per 100 g")
+                                except (TypeError, ValueError):
+                                    pass
+
+                        st.caption("Nutrition values are shown per 100 g for a like-for-like comparison. A lower or higher value is not automatically better for every nutrient; consider serving size and your dietary needs.")
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
+
+    st.caption("Data source: Open Food Facts. Product records are community-contributed and may be incomplete or outdated. Verify nutrition information on the package label.")
 
 elif st.session_state.page == "Food Diary":
     st.title("📔 My Food Diary")
