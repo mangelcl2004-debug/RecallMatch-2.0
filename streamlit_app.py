@@ -382,15 +382,18 @@ elif st.session_state.page == "Food Scanner":
                 try:
                     product = lookup_open_food_facts(cleaned_barcode)
                     if product:
-                        prodcut["barcode"] = cleaned_barcode
-                        st.session_state.last_product = product
-                        if "scan_history" not in st.session_state:
-                            st.session_state.scan_history = []
-                            
-                        st.session_state.scan_history.append({
-                            "name": product.get("product_name", "Unknown product"),
-                            "barcode": cleaned_barcode
-                        })
+
+                product = dict(product)
+                product["barcode"] = cleaned_barcode
+                st.session_state.last_product = product
+                
+                if "scan_history" not in st.session_state:
+                    st.session_state.scan_history = []
+
+                st.session_state.scan_history.append({
+                    "name": product.get("product_name", "Unknown product"),
+                    "barcode": cleaned_barcode
+                })
                     else:
                         st.session_state.last_product = None
                         st.warning("No matching product was found. Check the barcode and try again.")
