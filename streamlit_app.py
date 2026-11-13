@@ -314,6 +314,8 @@ if "diary" not in st.session_state:
     st.session_state.diary = []
 if "last_product" not in st.session_state:
     st.session_state.last_product = None
+if "scan_history" not in st.session_state:
+    st.session_state.scan_history = []
 
 with st.sidebar:
     st.markdown('<div class="rm-brand">✦ RecallMatch</div>', unsafe_allow_html=True)
@@ -351,7 +353,7 @@ if st.session_state.page == "Home":
         ("⚖️","Compare Foods","Compare nutritional information between products."),
         ("📔","Food Diary","Record and organize your meals."),
         ("📅","Nutrition Calendar","Explore your nutrition activity."),
-        ("🤖","AI Assistant","Get help understanding food and nutrition.")
+        ("🤖","AI Nutrition Assistant","Get help understanding food and nutrition.")
     ]
     cols = st.columns(3)
     for i,(icon,title,description) in enumerate(features):
@@ -387,11 +389,8 @@ elif st.session_state.page == "Food Scanner":
                         product["barcode"] = cleaned_barcode
                         st.session_state.last_product = product
                 
-                        if "scan_history" not in st.session_state:
-                            st.session_state.scan_history = []
-
                         st.session_state.scan_history.append({
-                            "name": product.get("product_name", "Unknown product"),
+                            "name": product.get("product_name") or product.get("product_name_en") or "Unknown product",
                             "barcode": cleaned_barcode
                         })
                     else:
@@ -407,13 +406,14 @@ elif st.session_state.page == "Food Scanner":
             st.warning("Enter a barcode first. Photo-based product recognition is not available yet.")
 
     if st.session_state.last_product:
-        show_product(st.session_state.last_product[0], st.session_state.last_product[1], selected_allergens)
+        saved_product = st.session_state.last_product
+        show_product(saved_product, saved_product.get("barcode", ""), selected_allergens)
 
 elif st.session_state.page == "Food Health Score":
     st.title("🥗 Food Health Score")
     st.write("Evaluate the nutritional quality of your scanned food product.")
     if st.session_state.last_product:
-        product = st.session_state.last_product[0]
+        product = st.session_state.last_product
         nutriments = product.get("nutriments") or {}
         sugar = nutriments.get("sugars_100g")
         saturated_fat = nutriments.get("saturated-fat_100g")
