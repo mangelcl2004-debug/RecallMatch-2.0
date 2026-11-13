@@ -701,7 +701,7 @@ elif st.session_state.page == "AI Nutrition Assistant":
             else:
                 answer = "Ask me about sugar, saturated fat, protein, salt, or allergens."
 
-            st.success(answer
+            st.success(answer)
      else:
         st.info("Scan a food product first to ask nutrition questions.")
 
