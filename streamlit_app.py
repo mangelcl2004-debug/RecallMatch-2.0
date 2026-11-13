@@ -658,7 +658,7 @@ elif st.session_state.page == "Nutrition Calendar":
 elif st.session_state.page == "Recent Scans":
     st.title("🕘 Recent Scans")
     if "scan_history" not in st.session_state:
-    st.session_state.scan_history = []
+        st.session_state.scan_history = []
 if st.session_state.scan_history:
     for item in reversed(st.session_state.scan_history):
         st.write(f"**{item['name']}**")
