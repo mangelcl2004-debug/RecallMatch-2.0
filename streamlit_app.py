@@ -729,7 +729,7 @@ elif st.session_state.page == "My Account":
     )
 
     diet = st.selectbox(
-        "Dietary preference",)
+        "Dietary preference",
         [
             "No specific diet",
             "Vegetarian",
@@ -737,7 +737,7 @@ elif st.session_state.page == "My Account":
             "Gluten-free",
             "Dairy-free",
             "Low-sugar"
-        ],
+        ])
         index=[
             "No specific diet",
             "Vegetarian",
