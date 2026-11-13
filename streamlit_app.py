@@ -2,6 +2,7 @@ import json
 import re
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 import streamlit as st
 
@@ -66,6 +67,34 @@ def lookup_open_food_facts(barcode: str):
     if data.get("status") != 1 or not data.get("product"):
         return None
     return data["product"]
+
+
+def lookup_fda_food_recalls(search_term: str, limit: int = 10):
+    """Search FDA's public openFDA food enforcement recall database."""
+    term = search_term.strip()
+    if not term:
+        raise ValueError("Enter a product name, brand, or company to search.")
+    safe_term = term.replace("\\", " ").replace('"', " ").strip()
+    query = f'products.description:"{safe_term}" OR recalling_firm:"{safe_term}"'
+    url = (
+        "https://api.fda.gov/food/enforcement.json?"
+        f"search={quote(query, safe='')}&limit={int(limit)}&sort=report_date:desc"
+    )
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "RecallMatch/2.0 (FDA food recall lookup)"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return []
+        raise RuntimeError(f"FDA recall database returned HTTP {exc.code}.") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError("Could not reach the FDA recall database. Check the internet connection and try again.") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("The FDA recall database returned an unreadable response.") from exc
+    return data.get("results", [])
 
 
 ALLERGEN_TERMS = {
@@ -137,12 +166,12 @@ def show_product(product, barcode, selected_allergens):
             st.info("No product image is available in the database.")
     with right:
         st.subheader(name)
-        st.write(f"*Brand:* {brand}")
-        st.write(f"*Barcode:* {barcode}")
+        st.write(f"**Brand:** {brand}")
+        st.write(f"**Barcode:** {barcode}")
         if product.get("quantity"):
-            st.write(f"*Package size:* {product['quantity']}")
+            st.write(f"**Package size:** {product['quantity']}")
         if product.get("nutriscore_grade"):
-            st.write(f"*Nutri-Score:* {str(product['nutriscore_grade']).upper()}")
+            st.write(f"**Nutri-Score:** {str(product['nutriscore_grade']).upper()}")
 
     st.markdown("#### Nutrition information")
     nutrition_items = [
@@ -170,7 +199,7 @@ def show_product(product, barcode, selected_allergens):
 
     st.markdown("#### Allergen safety check")
     declared = product.get("allergens") or ""
-    st.write(f"*Allergens declared in the database:* {declared if declared else 'No allergen information listed.'}")
+    st.write(f"**Allergens declared in the database:** {declared if declared else 'No allergen information listed.'}")
 
     if not selected_allergens:
         st.info("Choose your allergens above to run a personalized ingredient check.")
@@ -179,7 +208,7 @@ def show_product(product, barcode, selected_allergens):
         if matches:
             st.error("Potential allergen match found. Do not consume until you verify the complete package label and manufacturer information.")
             for allergen, terms in matches:
-                st.write(f"- *{allergen}:* matching text — {', '.join(terms)}")
+                st.write(f"- **{allergen}:** matching text — {', '.join(terms)}")
         elif has_source_data:
             st.success("No selected allergen terms were found in the available database text.")
             st.caption("This is not proof that the product is safe for you. Cross-contact and incomplete or outdated records may not be detected.")
@@ -287,8 +316,38 @@ elif st.session_state.page == "Food Scanner":
 
 elif st.session_state.page == "FDA Recalls":
     st.title("🛡️ FDA Food Recalls")
-    st.write("Explore official food safety recall information.")
-    st.info("FDA recall database integration is a separate next step. A product lookup is not a recall safety check.")
+    st.write("Search FDA food enforcement reports for recalled products, brands, or companies.")
+    st.warning("A search with no results does not prove a product is safe. FDA records may be incomplete or delayed; always verify current notices and the package details.")
+    recall_term = st.text_input("Search product, brand, or recalling company", placeholder="Example: peanut butter, spinach, or company name")
+    if st.button("Search FDA Recalls", type="primary"):
+        if not recall_term.strip():
+            st.warning("Enter a product, brand, or company name first.")
+        else:
+            with st.spinner("Searching the FDA food enforcement database..."):
+                try:
+                    recall_results = lookup_fda_food_recalls(recall_term, limit=10)
+                    if not recall_results:
+                        st.info("No matching FDA food enforcement reports were returned for that search. Try a shorter product or brand name.")
+                    else:
+                        st.success(f"Found {len(recall_results)} matching FDA enforcement report(s).")
+                        for item in recall_results:
+                            products = item.get("products") or []
+                            descriptions = [p.get("description", "") for p in products if p.get("description")]
+                            with st.expander(f"{item.get('recalling_firm', 'Company not listed')} — {descriptions[0] if descriptions else 'Product description not listed'}"):
+                                st.write(f"**Recall reason:** {item.get('reason_for_recall', 'Not listed')}")
+                                st.write(f"**Status:** {item.get('status', 'Not listed')}")
+                                st.write(f"**Classification:** {item.get('classification', 'Not listed')}")
+                                st.write(f"**Recall initiation date:** {item.get('recall_initiation_date', 'Not listed')}")
+                                st.write(f"**Report date:** {item.get('report_date', 'Not listed')}")
+                                st.write(f"**Distribution:** {item.get('distribution_pattern', 'Not listed')}")
+                                if descriptions:
+                                    st.write("**Products:** " + "; ".join(descriptions))
+                                if item.get("recall_number"):
+                                    st.caption(f"FDA recall number: {item['recall_number']}")
+                except (RuntimeError, ValueError) as exc:
+                    st.error(str(exc))
+    st.caption("Data source: FDA openFDA Food Enforcement API. This search covers FDA food enforcement records, not every food-safety alert or USDA-regulated meat and poultry recall. Verify details with the official FDA notices.")
+    st.markdown("[Open FDA Recalls, Market Withdrawals, and Safety Alerts](https://www.fda.gov/safety/recalls-market-withdrawals-safety-alerts)")
 
 elif st.session_state.page == "Compare Foods":
     st.title("⚖️ Compare Foods")
