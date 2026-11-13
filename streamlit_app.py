@@ -703,18 +703,30 @@ elif st.session_state.page == "Nutrition Calendar":
     st.caption("Calendar entries are stored temporarily during this session.")
 
 elif st.session_state.page == "Recent Scans":
-    st.title("🕘 Recent Scans")
-    
+    st.title("🔍 Recent Scans")
+    st.write("Your recently scanned food products.")
+
     if "scan_history" not in st.session_state:
         st.session_state.scan_history = []
-        
+
     if st.session_state.scan_history:
+        st.subheader("Scan History")
+        
         for item in reversed(st.session_state.scan_history):
-            st.write(f"**{item['name']}**")
-            st.caption(f"Barcode: {item['barcode']}")
-            st.divider()
+            with st.container():
+                st.write(f"### {item.get('name', 'Unknown product')}")
+                st.write(f"**Barcode:** {item.get('barcode', 'N/A')}")
+                st.divider()
+
+        if st.button("Clear Scan History"):
+            st.session_state.scan_history = []
+            st.success("Scan history cleared!")
+            st.rerun()
+
     else:
         st.info("No scanned products yet. Scan a food product to see it here.")
+
+    st.caption("Scan history is stored temporarily during this session.")
     
 elif st.session_state.page == "AI Nutrition Assistant":
     st.title("🤖 RecallMatch AI")
