@@ -652,8 +652,55 @@ elif st.session_state.page == "Food Diary":
 
 elif st.session_state.page == "Nutrition Calendar":
     st.title("📅 Nutrition Calendar")
-    st.write("Your nutrition activity calendar.")
-    st.info("Calendar tracking will be implemented in a future phase.")
+    st.write("Track your daily meals and nutrition activity.")
+
+    import pandas as pd
+    from datetime import date
+
+    if "calendar_entries" not in st.session_state:
+        st.session_state.calendar_entries = []
+
+    st.subheader("Add a Meal")
+
+    meal_date = st.date_input("Meal date", value=date.today())
+    meal_type = st.selectbox(
+        "Meal type",
+        ["Breakfast", "Lunch", "Dinner", "Snack"]
+    )
+    food_name = st.text_input("Food name")
+    notes = st.text_input("Notes (optional)")
+
+    if st.button("Save Meal to Calendar"):
+        if food_name.strip():
+            st.session_state.calendar_entries.append({
+                "Date": str(meal_date),
+                "Meal": meal_type,
+                "Food": food_name.strip(),
+                "Notes": notes
+            })
+            st.success("Meal added to your calendar!")
+        else:
+            st.warning("Please enter a food name.")
+
+    st.divider()
+    st.subheader("Your Nutrition Calendar")
+
+    if st.session_state.calendar_entries:
+        entries = sorted(
+            st.session_state.calendar_entries,
+            key=lambda x: x["Date"],
+            reverse=True
+        )
+        st.dataframe(entries, use_container_width=True)
+
+        if st.button("Clear Calendar"):
+           st.session_state.calendar_entries = []
+           st.rerun()
+
+    else:
+        st.info("No meals recorded yet. Add your first meal above.")
+
+    st.caption("Calendar entries are stored temporarily during this session.")
 
 elif st.session_state.page == "Recent Scans":
     st.title("🕘 Recent Scans")
