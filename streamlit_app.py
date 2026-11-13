@@ -72,9 +72,11 @@ ALLERGEN_TERMS = {
     "Milk": ["milk", "whey", "casein", "caseinate", "butter", "cream", "lactose"],
     "Egg": ["egg", "eggs", "albumin", "mayonnaise"],
     "Peanuts": ["peanut", "peanuts", "groundnut"],
-    "Tree nuts": ["almond", "hazelnut", "walnut", "cashew", "pecan", "pistachio", "macadamia", "brazil nut"],
+    # Generic "nuts" is handled as an unspecified tree-nut declaration below;
+    # it is deliberately NOT treated as peanuts.
+    "Tree nuts": ["almond", "hazelnut", "walnut", "cashew", "pecan", "pistachio", "macadamia", "brazil nut", "nuts"],
     "Wheat": ["wheat", "wheat flour", "semolina", "spelt", "durum"],
-    "Soy": ["soy", "soya", "soybean", "soy lecithin", "edamame"],
+    "Soy": ["soy", "soya", "soybean", "soybeans", "soya bean", "soya beans", "soy bean", "soy beans", "soy lecithin", "edamame"],
     "Fish": ["fish", "anchovy", "cod", "salmon", "tuna"],
     "Crustacean shellfish": ["crustacean", "shrimp", "prawn", "crab", "lobster", "crayfish"],
     "Sesame": ["sesame", "tahini"],
@@ -82,16 +84,34 @@ ALLERGEN_TERMS = {
 
 
 def find_allergen_matches(product, selected_allergens):
+    """Match selected allergens against ingredient text and OFF allergen declarations.
+
+    Open Food Facts may return declarations such as "en:soybeans" or the
+    generic "en:nuts" tag. Normalize language prefixes and punctuation before
+    matching. Generic nuts are associated with Tree nuts, never Peanuts.
+    """
     ingredients = product.get("ingredients_text") or ""
     declared = product.get("allergens") or ""
     tags = product.get("allergens_tags") or []
-    searchable = f"{ingredients} {declared} {' '.join(tags)}".lower()
+
+    # Keep original text for evidence labels, but normalize OFF tags such as
+    # "en:soybeans" into ordinary words for matching.
+    raw_sources = [ingredients, declared, " ".join(str(tag) for tag in tags)]
+    searchable = " ".join(raw_sources).lower()
+    searchable = re.sub(r"\b[a-z]{2,3}:", " ", searchable)
+    searchable = re.sub(r"[^a-z0-9]+", " ", searchable)
+
     matches = []
     for allergen in selected_allergens:
         terms = ALLERGEN_TERMS.get(allergen, [allergen.lower()])
         found_terms = []
         for term in terms:
-            pattern = r"(?<![a-z])" + re.escape(term.lower()) + r"(?![a-z])"
+            normalized_term = re.sub(r"[^a-z0-9]+", " ", term.lower()).strip()
+            if not normalized_term:
+                continue
+            # Exact token/phrase boundaries avoid matching "soy" inside
+            # unrelated words while allowing explicit plural variants above.
+            pattern = r"(?<![a-z0-9])" + re.escape(normalized_term) + r"(?![a-z0-9])"
             if re.search(pattern, searchable):
                 found_terms.append(term)
         if found_terms:
@@ -117,12 +137,12 @@ def show_product(product, barcode, selected_allergens):
             st.info("No product image is available in the database.")
     with right:
         st.subheader(name)
-        st.write(f"**Brand:** {brand}")
-        st.write(f"**Barcode:** {barcode}")
+        st.write(f"*Brand:* {brand}")
+        st.write(f"*Barcode:* {barcode}")
         if product.get("quantity"):
-            st.write(f"**Package size:** {product['quantity']}")
+            st.write(f"*Package size:* {product['quantity']}")
         if product.get("nutriscore_grade"):
-            st.write(f"**Nutri-Score:** {str(product['nutriscore_grade']).upper()}")
+            st.write(f"*Nutri-Score:* {str(product['nutriscore_grade']).upper()}")
 
     st.markdown("#### Nutrition information")
     nutrition_items = [
@@ -150,7 +170,7 @@ def show_product(product, barcode, selected_allergens):
 
     st.markdown("#### Allergen safety check")
     declared = product.get("allergens") or ""
-    st.write(f"**Allergens declared in the database:** {declared if declared else 'No allergen information listed.'}")
+    st.write(f"*Allergens declared in the database:* {declared if declared else 'No allergen information listed.'}")
 
     if not selected_allergens:
         st.info("Choose your allergens above to run a personalized ingredient check.")
@@ -159,7 +179,7 @@ def show_product(product, barcode, selected_allergens):
         if matches:
             st.error("Potential allergen match found. Do not consume until you verify the complete package label and manufacturer information.")
             for allergen, terms in matches:
-                st.write(f"- **{allergen}:** matching text — {', '.join(terms)}")
+                st.write(f"- *{allergen}:* matching text — {', '.join(terms)}")
         elif has_source_data:
             st.success("No selected allergen terms were found in the available database text.")
             st.caption("This is not proof that the product is safe for you. Cross-contact and incomplete or outdated records may not be detected.")
