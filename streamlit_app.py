@@ -313,7 +313,7 @@ if "page" not in st.session_state:
 if "diary" not in st.session_state:
     st.session_state.diary = []
 if "last_product" not in st.session_state:
-    st.session_state.last_product = product
+    st.session_state.last_product = None
 
 with st.sidebar:
     st.markdown('<div class="rm-brand">✦ RecallMatch</div>', unsafe_allow_html=True)
