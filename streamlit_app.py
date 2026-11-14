@@ -1,5 +1,8 @@
 import json
 import re
+from io import BytesIO
+
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import urllib.error
 import urllib.request
 from urllib.parse import quote
@@ -38,6 +41,42 @@ h1,h2,h3 {color:#f5f8f6!important;}
 @media(max-width:700px) {.hero{padding:22px}.hero h1{font-size:27px}.block-container{padding:1rem}}
 </style>
 """, unsafe_allow_html=True)
+
+
+def decode_barcode_from_photo(photo):
+    """Read a barcode from a Streamlit camera upload using pyzbar/ZBar."""
+    if photo is None:
+        return None
+
+    try:
+        from pyzbar.pyzbar import decode
+    except ImportError as exc:
+        raise RuntimeError(
+            "Barcode scanning needs pyzbar and the ZBar system library. "
+            "Install pyzbar and libzbar, then restart the app."
+        ) from exc
+
+    try:
+        image = Image.open(BytesIO(photo.getvalue())).convert("RGB")
+    except Exception as exc:
+        raise RuntimeError("The camera image could not be opened. Please take another photo.") from exc
+
+    # Try the original image and common rotations; improve contrast for difficult labels.
+    candidates = [image, ImageOps.autocontrast(image.convert("L")).convert("RGB")]
+    for angle in (90, 180, 270):
+        rotated = image.rotate(angle, expand=True)
+        candidates.append(rotated)
+        candidates.append(ImageOps.autocontrast(rotated.convert("L")).convert("RGB"))
+
+    for candidate in candidates:
+        for result in decode(candidate):
+            value = result.data.decode("utf-8", errors="ignore").strip()
+            digits = "".join(ch for ch in value if ch.isdigit())
+            # Food retail barcodes are generally numeric (EAN/UPC/GTIN).
+            if 8 <= len(digits) <= 14:
+                return digits
+
+    return None
 
 
 def lookup_open_food_facts(barcode: str):
@@ -379,31 +418,37 @@ elif st.session_state.page == "Food Scanner":
     photo = st.camera_input("Or take a product photo")
     if st.button("Search Product"):
         cleaned_barcode = "".join(ch for ch in barcode if ch.isdigit())
-        if cleaned_barcode:
-            with st.spinner("Searching Open Food Facts..."):
-                try:
+        try:
+            if not cleaned_barcode and photo is not None:
+                with st.spinner("Reading the barcode from your photo..."):
+                    cleaned_barcode = decode_barcode_from_photo(photo) or ""
+                if cleaned_barcode:
+                    st.success(f"Barcode detected: {cleaned_barcode}")
+                else:
+                    st.warning(
+                        "I couldn't read a barcode in that photo. Move closer, use bright even lighting, "
+                        "keep the barcode flat and in focus, and try again. You can also type the digits manually."
+                    )
+
+            if cleaned_barcode:
+                with st.spinner("Searching Open Food Facts..."):
                     product = lookup_open_food_facts(cleaned_barcode)
-                    
-                    if product:
-                        product = dict(product)
-                        product["barcode"] = cleaned_barcode
-                        st.session_state.last_product = product
-                
-                        st.session_state.scan_history.append({
-                            "name": product.get("product_name") or product.get("product_name_en") or "Unknown product",
-                            "barcode": cleaned_barcode
-                        })
-                    else:
-                         st.session_state.last_product = None
-                         st.warning("No matching product was found. Check the barcode and try again.")
-                        
-                except RuntimeError as error:
-                    st.error(str(error))
-                    
-        elif photo:
-            st.info("Photo recognition is not connected yet. Please enter the barcode digits for now.")
-        else:
-            st.warning("Enter a barcode first. Photo-based product recognition is not available yet.")
+
+                if product:
+                    product = dict(product)
+                    product["barcode"] = cleaned_barcode
+                    st.session_state.last_product = product
+                    st.session_state.scan_history.append({
+                        "name": product.get("product_name") or product.get("product_name_en") or "Unknown product",
+                        "barcode": cleaned_barcode
+                    })
+                else:
+                    st.session_state.last_product = None
+                    st.warning("No matching product was found for this barcode. Check the digits or try another product.")
+            elif photo is None and not barcode.strip():
+                st.warning("Enter a barcode or take a product photo first.")
+        except RuntimeError as error:
+            st.error(str(error))
 
     if st.session_state.last_product:
         saved_product = st.session_state.last_product
