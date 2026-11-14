@@ -11,9 +11,13 @@ import streamlit as st
 
 st.set_page_config(
     page_title="RecallMatch | Food Intelligence",
-    page_icon="🛡️",
+    page_icon="Neon Green RecallMatch Food Inteligence Icon.png",
     layout="wide",
     initial_sidebar_state="expanded"
+)
+st.siderbar.image(
+    "Neon Green RecallMatch Food Intelligence Icon.png",
+    width=200
 )
 
 st.markdown("""
