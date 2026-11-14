@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-st.siderbar.image(
+st.image(
     "Neon Green RecallMatch Food Intelligence Icon.png",
     width=200
 )
