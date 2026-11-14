@@ -43,6 +43,39 @@ h1,h2,h3 {color:#f5f8f6!important;}
 .stButton button {background:#087b57;color:white;border:1px solid #24b982;border-radius:10px;font-weight:700;}
 .stButton button:hover {background:#11986c;color:white;}
 @media(max-width:700px) {.hero{padding:22px}.hero h1{font-size:27px}.block-container{padding:1rem}}
+/* RecallMatch - Mobile Responsive Design */
+@media (max-width: 700px) {
+    .block-container {
+        padding: 1rem 0.8rem 2rem !important;
+        max-width: 100% !important;
+    }
+
+    .hero {
+        padding: 18px !important;
+        border-radius: 16px !important;
+    }
+
+    .hero h1 {
+        font-size: 27px !important;
+        line-height: 1.2 !important;
+    }
+
+    .metric-card,
+    .feature-card {
+        padding: 14px !important;
+        min-height: auto !important;
+    }
+
+    [data-testid="stButton"] button {
+        width: 100%;
+        min-height: 44px;
+        white-space: normal;
+    }
+
+    [data-testid="stHorizontalBlock"] {
+        gap: 10px !important;
+    }
+}
 </style>
 """, unsafe_allow_html=True)
 
